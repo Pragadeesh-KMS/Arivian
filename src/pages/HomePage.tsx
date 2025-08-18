@@ -1,0 +1,641 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { 
+  Search, BookOpen, ExternalLink, Loader, X, ArrowLeft, ArrowRight, Clock, 
+  Calendar, Book, Heart, TrendingUp 
+} from 'lucide-react';
+import Header from '../components/Header';
+import Sidebar from '../components/Sidebar';
+import PaperCard from '../components/PaperCard'; 
+import { useAuth } from '../contexts/AuthContext';
+import { searchRelevantPapers, searchBulkPapers } from '../services/ss';
+import { searchArXivPapers, ArXivPaper, getYesterdaysPapers } from '../services/arxivApi';
+import { Paper } from '../types/paper';
+import toast from 'react-hot-toast';
+
+const convertArXivToPaper = (arxivPaper: ArXivPaper): Paper => ({
+  id: arxivPaper.id,
+  title: arxivPaper.title,
+  authors: arxivPaper.authors,
+  abstract: arxivPaper.abstract,
+  published: arxivPaper.published,
+  url: arxivPaper.url,
+  pdfUrl: arxivPaper.pdfUrl, 
+  fieldsOfStudy: arxivPaper.categories,
+  citationCount: 0,
+  publicationTypes: ['preprint'],
+  venue: 'arXiv',
+});
+
+export default function HomePage() {
+  const { profile } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mode, setMode] = useState<'trending' | 'recent' | 'topics' | 'search'>('trending');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [papers, setPapers] = useState<Record<string, Paper[]>>({});
+  const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const [searchInitiated, setSearchInitiated] = useState(false);
+  const [currentTopicIndex, setCurrentTopicIndex] = useState(0);
+  const [yearFilter, setYearFilter] = useState<string>('');
+  const [trendingPapers, setTrendingPapers] = useState<Record<string, Paper[]>>({});
+  const [trendingLoading, setTrendingLoading] = useState(false);
+  const [tempStartYear, setTempStartYear] = useState('');
+  const [tempEndYear, setTempEndYear] = useState('');
+
+
+  const getTopics = useCallback(() => {
+    if (!profile) return [];
+    return [
+      profile.topic1,
+      profile.topic2,
+      profile.topic3,
+      profile.topic4,
+      profile.topic5
+    ].filter(topic => topic && topic.trim() !== '');
+  }, [profile]);
+
+  const fetchTrendingPapers = useCallback(async () => {
+    const topics = getTopics();
+    if (topics.length === 0) return;
+    
+    setTrendingLoading(true);
+    const papersPerTopic: Record<string, Paper[]> = {};
+    
+    for (const topic of topics) {
+      try {
+        const arxivPapers = await getYesterdaysPapers(topic, 6);
+        papersPerTopic[topic] = arxivPapers.map(convertArXivToPaper);
+      } catch (error) {
+        console.error(`Failed to fetch trending papers for topic: ${topic}`, error);
+        papersPerTopic[topic] = [];
+        toast.error(`Failed to load trending papers for: ${topic}`);
+      }
+    }
+    
+    setTrendingPapers(papersPerTopic);
+    setTrendingLoading(false);
+  }, [getTopics]);
+
+  const fetchRecentPapers = useCallback(async () => {
+    const topics = getTopics();
+    if (topics.length === 0) return;
+
+    setLoading(prev => ({ ...prev, recent: true }));
+    const papersPerTopic: Record<string, Paper[]> = {};
+
+    for (const topic of topics) {
+      try {
+        const ssPapers = await searchRelevantPapers(topic, 15);
+        papersPerTopic[topic] = ssPapers;
+      } catch (ssError) {
+        console.warn(`Semantic Scholar failed for topic "${topic}", trying ArXiv...`);
+        try {
+          const arxivPapers = await searchArXivPapers(topic, 15);
+          papersPerTopic[topic] = arxivPapers.map(convertArXivToPaper);
+        } catch (arxivError) {
+          console.error(`Both APIs failed for topic: ${topic}`, { ssError, arxivError });
+          papersPerTopic[topic] = [];
+          toast.error(`Failed to load recent papers for: ${topic}`);
+        }
+      }
+    }
+
+    setPapers(papersPerTopic);
+    setLoading(prev => ({ ...prev, recent: false }));
+  }, [getTopics]);
+
+  const fetchBestPapers = useCallback(async (yearRange?: string) => {
+    const topics = getTopics();
+    if (topics.length === 0) return;
+
+    setLoading(prev => ({ ...prev, topics: true }));
+    const papersPerTopic: Record<string, Paper[]> = {};
+
+    for (const topic of topics) {
+      try {
+        const ssPapers = await searchBulkPapers(topic, 15, yearRange);
+        papersPerTopic[topic] = ssPapers;
+      } catch (ssError) {
+        console.warn(`Semantic Scholar failed for topic "${topic}", trying ArXiv...`);
+        try {
+          const arxivPapers = await searchArXivPapers(topic, 15, yearRange);
+          papersPerTopic[topic] = arxivPapers.map(convertArXivToPaper);
+        } catch (arxivError) {
+          console.error(`Both APIs failed for topic: ${topic}`, { ssError, arxivError });
+          papersPerTopic[topic] = [];
+          toast.error(`Failed to load best papers for: ${topic}`);
+        }
+      }
+    }
+
+    setPapers(papersPerTopic);
+    setLoading(prev => ({ ...prev, topics: false }));
+  }, [getTopics]);
+
+  const fetchSearchResults = useCallback(async (query: string, yearRange?: string) => {
+    if (!query.trim()) return;
+
+    setLoading(prev => ({ ...prev, search: true }));
+    setPapers({});
+
+    try {
+      const ssPapers = await searchBulkPapers(query, 20, yearRange);
+      setPapers({ [query]: ssPapers });
+    } catch (ssError) {
+      console.warn(`Semantic Scholar failed for search term "${query}", falling back to ArXiv...`);
+      try {
+        const arxivPapers = await searchArXivPapers(query, 20, yearRange);
+        setPapers({ [query]: arxivPapers.map(convertArXivToPaper) });
+      } catch (arxivError) {
+        console.error('Both SS and arXiv failed:', { ssError, arxivError });
+        setPapers({ [query]: [] });
+        toast.error('No papers found from either source');
+      }
+    } finally {
+      setLoading(prev => ({ ...prev, search: false }));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mode === 'trending') {
+      fetchTrendingPapers();
+    } else if (mode === 'recent') {
+      fetchRecentPapers();
+    } else if (mode === 'topics') {
+      fetchBestPapers(yearFilter);
+    }
+  }, [mode, yearFilter, fetchTrendingPapers, fetchRecentPapers, fetchBestPapers]);
+
+  useEffect(() => {
+    if (mode === 'search' && searchInitiated) {
+      fetchSearchResults(searchTerm, yearFilter);
+      setSearchInitiated(false);
+    }
+  }, [mode, searchInitiated, searchTerm, yearFilter, fetchSearchResults]);
+
+  const handleSearch = () => {
+    if (searchTerm.trim()) {
+      setMode('search');
+      setSearchInitiated(true);
+    }
+  };
+
+  const handleTrendingClick = () => {
+    setMode('trending');
+    setSearchTerm('');
+    setYearFilter('');
+  };
+
+  const handleTopicsClick = () => {
+    setMode('topics');
+    setSearchTerm('');
+  };
+
+  const handleRecentClick = () => {
+    setMode('recent');
+    setSearchTerm('');
+    setYearFilter('');
+  };
+
+  const handlePreviousTopic = () => {
+    setCurrentTopicIndex(prev => Math.max(0, prev - 1));
+  };
+
+  const handleNextTopic = () => {
+    const topics = getTopics();
+    setCurrentTopicIndex(prev => Math.min(topics.length - 1, prev + 1));
+  };
+
+  const topics = getTopics();
+  const currentTopic = topics[currentTopicIndex] || '';
+  const currentPapers = papers[currentTopic] || [];
+  const isLoading = Object.values(loading).some(Boolean);
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <Header onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      <main className="px-4 md:px-6 pb-12 pt-2">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="max-w-7xl mx-auto"
+        >
+
+          {/* Search & Filters */}
+          <div className="mb-8">
+            {/* Search row */}
+            <div className="flex justify-center mb-4">
+              <div className="relative w-full max-w-lg">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  onKeyPress={e => e.key === 'Enter' && handleSearch()}
+                  className="glass-input pl-12 pr-28 w-full"
+                  placeholder="Search by title, author, year, abstract..."
+                />
+                <button
+                  onClick={handleSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 py-2 px-3 text-sm rounded-lg 
+bg-gradient-to-r from-indigo-500 to-purple-500 text-white 
+shadow-lg shadow-indigo-300/40 
+transition-all duration-300 hover:scale-70 hover:shadow-purple-400/50"
+
+
+
+                >
+                  Search 
+                </button>
+              </div>
+            </div>
+
+          
+            {mode === 'search' && (
+              <div className="mt-2 text-sm text-slate-500">
+                Tip: Use single query without commas for better results.
+              </div>
+            )}
+          
+            {/* Filter buttons centered */}
+            <div className="flex flex-wrap gap-4 justify-center items-center mt-4">
+              <button
+                onClick={handleTrendingClick}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
+                  mode === 'trending'
+                    ? 'bg-indigo-100/70 border border-indigo-300 text-indigo-700'
+                    : 'glass-card-hover text-slate-700 hover:text-indigo-600'
+                }`}
+              >
+                <TrendingUp className="w-5 h-5" />
+                <span className="font-medium">Trending Papers</span>
+              </button>
+              <button
+                onClick={handleRecentClick}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
+                  mode === 'recent'
+                    ? 'bg-indigo-100/70 border border-indigo-300 text-indigo-700'
+                    : 'glass-card-hover text-slate-700 hover:text-indigo-600'
+                }`}
+              >
+                <Clock className="w-5 h-5" />
+                <span className="font-medium">Relevant To Your Topics</span>
+              </button>
+              <button
+                onClick={handleTopicsClick}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
+                  mode === 'topics'
+                    ? 'bg-indigo-100/70 border border-indigo-300 text-indigo-700'
+                    : 'glass-card-hover text-slate-700 hover:text-indigo-600'
+                }`}
+              >
+                <BookOpen className="w-5 h-5" />
+                <span className="font-medium">Best in Your Topics</span>
+              </button>
+          
+              {/* Year filter stays inline if applicable */}
+              {(mode === 'topics' || mode === 'search') && (
+                <div className="flex items-center gap-2 glass-card p-2 rounded-lg">
+                  <Calendar className="w-5 h-5 text-slate-500" />
+              
+                  {/* Start Year Dropdown */}
+                  <select
+                    value={tempStartYear}
+                    onChange={(e) => setTempStartYear(e.target.value)}
+                    className="bg-transparent border-none focus:ring-0"
+                  >
+                    <option value="">Start Year</option>
+                    {Array.from(
+                      { length: new Date().getFullYear() - 1980 + 1 },
+                      (_, i) => 1980 + i
+                    ).map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+              
+                  <span className="text-slate-500">-</span>
+              
+                  {/* End Year Dropdown */}
+                  <select
+                    value={tempEndYear}
+                    onChange={(e) => setTempEndYear(e.target.value)}
+                    className="bg-transparent border-none focus:ring-0"
+                  >
+                    <option value="">End Year</option>
+                    {Array.from(
+                      { length: new Date().getFullYear() - 1980 + 1 },
+                      (_, i) => 1980 + i
+                    ).map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+              
+                  {/* Apply Button */}
+                  <button
+                    onClick={() => {
+                      if (
+                        tempStartYear &&
+                        tempEndYear &&
+                        Number(tempStartYear) <= Number(tempEndYear)
+                      ) {
+                        setYearFilter(`${tempStartYear}-${tempEndYear}`);
+                        if (mode === 'search') setSearchInitiated(true); // optional for search mode
+                      }
+                    }}
+                    disabled={
+                      !tempStartYear ||
+                      !tempEndYear ||
+                      Number(tempStartYear) > Number(tempEndYear)
+                    }
+                    className={`ml-2 px-3 py-1 rounded-lg transition-colors ${
+                      !tempStartYear ||
+                      !tempEndYear ||
+                      Number(tempStartYear) > Number(tempEndYear)
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-indigo-500 text-white hover:bg-indigo-600'
+                    }`}
+                  >
+                    Apply
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+
+          {/* Loading State */}
+          {(isLoading || trendingLoading) && (
+            <div className="flex items-center justify-center py-12">
+              <div className="glass-card p-8 text-center">
+                <Loader className="w-8 h-8 animate-spin text-indigo-600 mx-auto mb-4" />
+                <p className="text-slate-600">
+                  {mode === 'search' 
+                    ? 'Searching papers...' 
+                    : mode === 'recent'
+                    ? 'Loading recent papers...'
+                    : mode === 'trending'
+                    ? 'Loading trending papers...'
+                    : 'Discovering best papers...'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Trending Papers Display */}
+          {!trendingLoading && mode === 'trending' && (
+            <>
+              {topics.length > 0 ? (
+                <div className="mb-12">
+                  <div className="text-center mb-6">
+                    <h2 className="text-xl font-semibold text-slate-800 flex items-center justify-center gap-2">
+                      <TrendingUp className="w-6 h-6 text-indigo-600" />
+                      Recent Papers
+                    </h2>
+                    <p className="text-sm text-slate-600 mt-2">Latest papers published in your topics</p>
+                  </div>
+                  
+                  {Object.entries(trendingPapers).map(([topic, papers]) => (
+                    <div key={topic} className="mb-10">
+                      <h3 className="text-lg font-semibold text-slate-800 mb-4 bg-indigo-50 p-3 rounded-lg">
+                        {topic}
+                      </h3>
+                      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {papers.map((paper, i) => (
+                          <PaperCard key={`${topic}-${i}`} paper={paper} />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="glass-card p-8 max-w-md mx-auto">
+                    <TrendingUp className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-slate-800 mb-2">
+                      No Topics Added
+                    </h3>
+                    <p className="text-slate-600">
+                      Add research topics to your profile to get trending paper recommendations
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Papers Display - Recent Mode */}
+          {!isLoading && mode === 'recent' && (
+            <>
+              {topics.length > 0 ? (
+                <div className="mb-12">
+                  <div className="text-center mb-6">
+                    <h2 className="text-xl font-semibold text-slate-800 flex items-center justify-center gap-2">
+                      <Clock className="w-6 h-6 text-indigo-600" />
+                      Relevant Papers in Your Topics
+                    </h2>
+                    <p className="text-sm text-slate-600 mt-2">Entirely Related to Your Interest Topics</p>
+                  </div>
+                  
+                  {topics.some(topic => papers[topic]?.length > 0) ? (
+                    <div className="mb-12">
+                      {/* Topic Navigation */}
+                      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+                        <button
+                          onClick={handlePreviousTopic}
+                          disabled={currentTopicIndex === 0}
+                          className={`flex items-center gap-1 px-4 py-2 rounded-lg ${
+                            currentTopicIndex === 0
+                              ? 'text-slate-400 cursor-not-allowed'
+                              : 'text-indigo-600 hover:bg-indigo-100'
+                          }`}
+                        >
+                          <ArrowLeft className="w-4 h-4" />
+                          <span className="hidden sm:inline">Previous Topic</span>
+                        </button>
+                        
+                        <div className="flex flex-col items-center">
+                          <h2 className="text-xl font-semibold text-slate-800 flex items-center">
+                            <span className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full text-center">
+                              {currentTopic}
+                            </span>
+                          </h2>
+                          <div className="text-sm text-slate-500 mt-2">
+                            Topic {currentTopicIndex + 1} of {topics.length}
+                          </div>
+                        </div>
+                        
+                        <button
+                          onClick={handleNextTopic}
+                          disabled={currentTopicIndex === topics.length - 1}
+                          className={`flex items-center gap-1 px-4 py-2 rounded-lg ${
+                            currentTopicIndex === topics.length - 1
+                              ? 'text-slate-400 cursor-not-allowed'
+                              : 'text-indigo-600 hover:bg-indigo-100'
+                          }`}
+                        >
+                          <span className="hidden sm:inline">Next Topic</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                      
+                      {/* Papers Grid */}
+                      {currentPapers.length > 0 ? (
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {currentPapers.map((paper, i) => (
+                            <PaperCard key={`${currentTopic}-${i}`} paper={paper} />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="glass-card p-6 text-center">
+                          <p className="text-slate-600">
+                            No papers found for "{currentTopic}". Try updating to similar, popular keywords in your field.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="glass-card p-6 text-center">
+                      <p className="text-slate-600">
+                        No recent papers found for your topics. Try updating your profile with more specific research areas.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="glass-card p-8 max-w-md mx-auto">
+                    <Clock className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-slate-800 mb-2">
+                      No Topics Added
+                    </h3>
+                    <p className="text-slate-600">
+                      Add research topics to your profile to get recent paper recommendations
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Papers Display - Topics Mode */}
+          {!isLoading && mode === 'topics' && (
+            <>
+              {topics.length > 0 ? (
+                <div className="mb-12">
+                  {/* Topic Navigation */}
+                  <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+                    <button
+                      onClick={handlePreviousTopic}
+                      disabled={currentTopicIndex === 0}
+                      className={`flex items-center gap-1 px-4 py-2 rounded-lg ${
+                        currentTopicIndex === 0
+                          ? 'text-slate-400 cursor-not-allowed'
+                          : 'text-indigo-600 hover:bg-indigo-100'
+                      }`}
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      <span className="hidden sm:inline">Previous Topic</span>
+                    </button>
+                    
+                    <div className="flex flex-col items-center">
+                      <h2 className="text-xl font-semibold text-slate-800 flex items-center">
+                        <span className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full text-center">
+                          {currentTopic}
+                        </span>
+                      </h2>
+                      <div className="text-sm text-slate-500 mt-2">
+                        Topic {currentTopicIndex + 1} of {topics.length}
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={handleNextTopic}
+                      disabled={currentTopicIndex === topics.length - 1}
+                      className={`flex items-center gap-1 px-4 py-2 rounded-lg ${
+                        currentTopicIndex === topics.length - 1
+                          ? 'text-slate-400 cursor-not-allowed'
+                          : 'text-indigo-600 hover:bg-indigo-100'
+                      }`}
+                    >
+                      <span className="hidden sm:inline">Next Topic</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  {/* Papers Grid */}
+                  {currentPapers.length > 0 ? (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {currentPapers.map((paper, i) => (
+                        <PaperCard key={`${currentTopic}-${i}`} paper={paper} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="glass-card p-6 text-center">
+                      <p className="text-slate-600">
+                        No papers found for "{currentTopic}". Try updating to similar, popular keywords in your field.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="glass-card p-8 max-w-md mx-auto">
+                    <BookOpen className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-slate-800 mb-2">
+                      No Topics Added
+                    </h3>
+                    <p className="text-slate-600">
+                      Add research topics to your profile to get personalized recommendations
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Papers Display - Search Mode */}
+          {!isLoading && mode === 'search' && (
+            <>
+              {Object.entries(papers).map(([query, papersList]) => (
+                <div key={query}>
+                  {papersList.length > 0 ? (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {papersList.map((paper, i) => (
+                        <PaperCard key={`search-${i}`} paper={paper} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="glass-card p-8 max-w-md mx-auto">
+                        <Search className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-slate-800 mb-2">
+                          No Matching Papers Found
+                        </h3>
+                        <p className="text-slate-600">
+                          Couldn't retrieve the correct paper. Please try:
+                        </p>
+                        <ul className="mt-3 text-left text-sm text-slate-600 space-y-1">
+                          <li>• Check for spelling mistakes</li>
+                          <li>• Try using the paper's DOI or arXiv ID</li>
+                          <li>• Search by author name</li>
+                          <li>• Use more specific keywords</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </>
+          )}
+        </motion.div>
+      </main>
+    </div>
+  );
+}
