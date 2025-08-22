@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Search, BookOpen, ExternalLink, Loader, X, ArrowLeft, ArrowRight, Clock, 
-  Calendar, Book, Heart, TrendingUp 
+  Calendar, Heart, TrendingUp 
 } from 'lucide-react';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
@@ -20,11 +20,12 @@ const convertArXivToPaper = (arxivPaper: ArXivPaper): Paper => ({
   abstract: arxivPaper.abstract,
   published: arxivPaper.published,
   url: arxivPaper.url,
-  pdfUrl: arxivPaper.pdfUrl, 
+  pdfUrl: arxivPaper.pdfUrl,
   fieldsOfStudy: arxivPaper.categories,
   citationCount: 0,
   publicationTypes: ['preprint'],
   venue: 'arXiv',
+  source: 'arxiv',
 });
 
 export default function HomePage() {
@@ -36,12 +37,9 @@ export default function HomePage() {
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [searchInitiated, setSearchInitiated] = useState(false);
   const [currentTopicIndex, setCurrentTopicIndex] = useState(0);
-  const [yearFilter, setYearFilter] = useState<string>('');
   const [trendingPapers, setTrendingPapers] = useState<Record<string, Paper[]>>({});
   const [trendingLoading, setTrendingLoading] = useState(false);
-  const [tempStartYear, setTempStartYear] = useState('');
-  const [tempEndYear, setTempEndYear] = useState('');
-
+  const [yearFilter, setYearFilter] = useState<string>('');
 
   const getTopics = useCallback(() => {
     if (!profile) return [];
@@ -85,12 +83,12 @@ export default function HomePage() {
 
     for (const topic of topics) {
       try {
-        const ssPapers = await searchRelevantPapers(topic, 15);
+        const ssPapers = await searchRelevantPapers(topic, 15, yearFilter || '2014-');
         papersPerTopic[topic] = ssPapers;
       } catch (ssError) {
         console.warn(`Semantic Scholar failed for topic "${topic}", trying ArXiv...`);
         try {
-          const arxivPapers = await searchArXivPapers(topic, 15);
+          const arxivPapers = await searchArXivPapers(topic, 15, yearFilter || '2014-');
           papersPerTopic[topic] = arxivPapers.map(convertArXivToPaper);
         } catch (arxivError) {
           console.error(`Both APIs failed for topic: ${topic}`, { ssError, arxivError });
@@ -102,9 +100,9 @@ export default function HomePage() {
 
     setPapers(papersPerTopic);
     setLoading(prev => ({ ...prev, recent: false }));
-  }, [getTopics]);
+  }, [getTopics, yearFilter]);
 
-  const fetchBestPapers = useCallback(async (yearRange?: string) => {
+  const fetchBestPapers = useCallback(async () => {
     const topics = getTopics();
     if (topics.length === 0) return;
 
@@ -113,12 +111,12 @@ export default function HomePage() {
 
     for (const topic of topics) {
       try {
-        const ssPapers = await searchBulkPapers(topic, 15, yearRange);
+        const ssPapers = await searchBulkPapers(topic, 15, yearFilter || '2014-');
         papersPerTopic[topic] = ssPapers;
       } catch (ssError) {
         console.warn(`Semantic Scholar failed for topic "${topic}", trying ArXiv...`);
         try {
-          const arxivPapers = await searchArXivPapers(topic, 15, yearRange);
+          const arxivPapers = await searchArXivPapers(topic, 15, yearFilter || '2014-');
           papersPerTopic[topic] = arxivPapers.map(convertArXivToPaper);
         } catch (arxivError) {
           console.error(`Both APIs failed for topic: ${topic}`, { ssError, arxivError });
@@ -130,21 +128,21 @@ export default function HomePage() {
 
     setPapers(papersPerTopic);
     setLoading(prev => ({ ...prev, topics: false }));
-  }, [getTopics]);
+  }, [getTopics, yearFilter]);
 
-  const fetchSearchResults = useCallback(async (query: string, yearRange?: string) => {
+  const fetchSearchResults = useCallback(async (query: string) => {
     if (!query.trim()) return;
 
     setLoading(prev => ({ ...prev, search: true }));
     setPapers({});
 
     try {
-      const ssPapers = await searchBulkPapers(query, 20, yearRange);
+      const ssPapers = await searchBulkPapers(query, 20, yearFilter || '2014-');
       setPapers({ [query]: ssPapers });
     } catch (ssError) {
       console.warn(`Semantic Scholar failed for search term "${query}", falling back to ArXiv...`);
       try {
-        const arxivPapers = await searchArXivPapers(query, 20, yearRange);
+        const arxivPapers = await searchArXivPapers(query, 20, yearFilter || '2014-');
         setPapers({ [query]: arxivPapers.map(convertArXivToPaper) });
       } catch (arxivError) {
         console.error('Both SS and arXiv failed:', { ssError, arxivError });
@@ -154,7 +152,7 @@ export default function HomePage() {
     } finally {
       setLoading(prev => ({ ...prev, search: false }));
     }
-  }, []);
+  }, [yearFilter]);
 
   useEffect(() => {
     if (mode === 'trending') {
@@ -162,7 +160,7 @@ export default function HomePage() {
     } else if (mode === 'recent') {
       fetchRecentPapers();
     } else if (mode === 'topics') {
-      fetchBestPapers(yearFilter);
+      fetchBestPapers();
     }
   }, [mode, yearFilter, fetchTrendingPapers, fetchRecentPapers, fetchBestPapers]);
 
@@ -171,7 +169,7 @@ export default function HomePage() {
       fetchSearchResults(searchTerm, yearFilter);
       setSearchInitiated(false);
     }
-  }, [mode, searchInitiated, searchTerm, yearFilter, fetchSearchResults]);
+  }, [mode, searchInitiated, fetchSearchResults]);
 
   const handleSearch = () => {
     if (searchTerm.trim()) {
@@ -241,7 +239,7 @@ export default function HomePage() {
                 <button
                   onClick={handleSearch}
                   className="absolute right-3 top-1/2 -translate-y-1/2 py-2 px-3 text-sm rounded-lg 
-bg-gradient-to-r from-indigo-500 to-purple-500 text-white 
+bg-gradient-to-r from-red-500 to-purple-600 text-white 
 shadow-lg shadow-indigo-300/40 
 transition-all duration-300 hover:scale-70 hover:shadow-purple-400/50"
 
@@ -255,7 +253,7 @@ transition-all duration-300 hover:scale-70 hover:shadow-purple-400/50"
 
           
             {mode === 'search' && (
-              <div className="mt-2 text-sm text-slate-500">
+              <div className="mt-2 text-sm text-slate-500 flex justify-center items-center">
                 Tip: Use single query without commas for better results.
               </div>
             )}
@@ -297,73 +295,26 @@ transition-all duration-300 hover:scale-70 hover:shadow-purple-400/50"
               </button>
           
               {/* Year filter stays inline if applicable */}
-              {(mode === 'topics' || mode === 'search') && (
-                <div className="flex items-center gap-2 glass-card p-2 rounded-lg">
-                  <Calendar className="w-5 h-5 text-slate-500" />
-              
-                  {/* Start Year Dropdown */}
-                  <select
-                    value={tempStartYear}
-                    onChange={(e) => setTempStartYear(e.target.value)}
-                    className="bg-transparent border-none focus:ring-0"
-                  >
-                    <option value="">Start Year</option>
-                    {Array.from(
-                      { length: new Date().getFullYear() - 1980 + 1 },
-                      (_, i) => 1980 + i
-                    ).map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
-              
-                  <span className="text-slate-500">-</span>
-              
-                  {/* End Year Dropdown */}
-                  <select
-                    value={tempEndYear}
-                    onChange={(e) => setTempEndYear(e.target.value)}
-                    className="bg-transparent border-none focus:ring-0"
-                  >
-                    <option value="">End Year</option>
-                    {Array.from(
-                      { length: new Date().getFullYear() - 1980 + 1 },
-                      (_, i) => 1980 + i
-                    ).map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
-              
-                  {/* Apply Button */}
-                  <button
-                    onClick={() => {
-                      if (
-                        tempStartYear &&
-                        tempEndYear &&
-                        Number(tempStartYear) <= Number(tempEndYear)
-                      ) {
-                        setYearFilter(`${tempStartYear}-${tempEndYear}`);
-                        if (mode === 'search') setSearchInitiated(true); // optional for search mode
-                      }
-                    }}
-                    disabled={
-                      !tempStartYear ||
-                      !tempEndYear ||
-                      Number(tempStartYear) > Number(tempEndYear)
-                    }
-                    className={`ml-2 px-3 py-1 rounded-lg transition-colors ${
-                      !tempStartYear ||
-                      !tempEndYear ||
-                      Number(tempStartYear) > Number(tempEndYear)
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-indigo-500 text-white hover:bg-indigo-600'
-                    }`}
-                  >
-                    Apply
-                  </button>
+              {(mode === 'topics' || mode === 'search' || mode === 'recent') && (
+                <div className="flex items-center gap-4 justify-center mt-4">
+                  <div className="flex items-center gap-2 glass-card p-2 rounded-lg">
+                    <Calendar className="w-5 h-5 text-slate-500" />
+                    <select
+                      value={yearFilter}
+                      onChange={(e) => setYearFilter(e.target.value)}
+                      className="bg-transparent border-none focus:ring-0"
+                    >
+                      <option value="">All Years (2014-Current)</option>
+                      {Array.from(
+                        { length: new Date().getFullYear() - 2014 + 1 },
+                        (_, i) => 2014 + i
+                      ).reverse().map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               )}
             </div>
@@ -403,7 +354,7 @@ transition-all duration-300 hover:scale-70 hover:shadow-purple-400/50"
                   
                   {Object.entries(trendingPapers).map(([topic, papers]) => (
                     <div key={topic} className="mb-10">
-                      <h3 className="text-lg font-semibold text-slate-800 mb-4 bg-indigo-50 p-3 rounded-lg">
+                      <h3 className="text-lg font-semibold text-slate-800 mb-4 bg-blue-100 p-3 rounded-lg flex items-center justify-center">
                         {topic}
                       </h3>
                       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

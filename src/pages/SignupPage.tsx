@@ -6,7 +6,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { Brain } from "lucide-react";
+import Logo from "../components/Logo";
 
 const schema = yup.object({
   email: yup.string().email('Invalid email').required('Email is required'),
@@ -52,9 +52,9 @@ export default function SignupPage() {
         <div className="glass-card p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Brain className="w-5 h-5 text-white" />
-            </div>
+              <div className="flex items-center gap-3">
+                <Logo width="340" height="70" viewBox="-350 0 1400 100" />
+              </div>
             <h1 className="text-2xl font-bold text-slate-800 mb-2">Create Your Account</h1>
             <p className="text-slate-600">Join the future of research collaboration</p>
           </div>
@@ -175,7 +175,7 @@ export default function SignupPage() {
             to="/"
             className="text-slate-600 hover:text-indigo-600 transition-colors"
           >
-            ← Back to Home
+            ← Back to Landing Page
           </Link>
         </div>
       </motion.div>

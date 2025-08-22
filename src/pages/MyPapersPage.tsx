@@ -150,7 +150,7 @@ export default function MyPapersPage() {
         authors.push({ id: paper.author_id, name: authorName });
         
         paper.collaborators?.forEach(collabId => {
-          if (collabId !== paper.author_id) { // Skip if author is also in collaborators
+          if (collabId !== paper.author_id) { 
             const collabName = profileMap.get(collabId) || 'Unknown';
             authors.push({ id: collabId, name: collabName });
           }
@@ -253,11 +253,11 @@ export default function MyPapersPage() {
             </div>
             <div className="flex items-center gap-6 text-sm text-slate-600">
               <span className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                 First Author
               </span>
               <span className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                 Collaborator
               </span>
             </div>
@@ -287,8 +287,8 @@ export default function MyPapersPage() {
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium shadow-sm ${
                           isAuthor(paper)
-                            ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                            : 'bg-green-100 text-green-700 border border-green-200'
+                            ? 'bg-green-100 text-green-800 border border-green-500'
+                            : 'bg-red-100 text-red-800 border border-red-500'
                         }`}
                       >
                         {isAuthor(paper) ? 'First Author' : 'Collaborator'}
@@ -333,7 +333,7 @@ export default function MyPapersPage() {
                             e.stopPropagation();
                             copyToClipboard(paper.urn);
                           }}
-                          className="bg-white shadow-sm hover:shadow-md transition px-3 py-1 rounded-lg border border-indigo-200 text-indigo-600 font-mono font-bold"
+                          className="bg-white shadow-sm hover:shadow-md transition px-3 py-1 rounded-lg border border-cyan-4  00 text-cyan-600 font-mono font-bold"
                         >
                           <Copy className="w-4 h-4 inline mr-1" /> {paper.urn}
                         </button>
@@ -354,7 +354,7 @@ export default function MyPapersPage() {
                       <div className="flex gap-2">
                         <Link
                           to={`/edit-paper/${paper.id}`}
-                          className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded-lg text-xs flex items-center gap-1 shadow-md"
+                          className="bg-gradient-to-r from-blue-500 to-teal-500 hover:from-teal-500 hover:to-blue-500 text-white px-3 py-1 rounded-lg text-xs flex items-center gap-1 shadow-md"
                         >
                           <Edit className="w-3 h-3" /> EDIT CARD
                         </Link>
@@ -382,7 +382,7 @@ export default function MyPapersPage() {
                         {paper.topic_tags.map((tag, idx) => (
                           <span
                             key={idx}
-                            className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-medium shadow-sm"
+                            className="px-2 py-1 bg-blue-100 text-teal-800 rounded-lg text-xs font-medium shadow-sm"
                           >
                             {tag}
                           </span>
@@ -454,8 +454,8 @@ export default function MyPapersPage() {
                           key={author.id} 
                           className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs ${
                             idx === 0 
-                              ? 'bg-blue-100 text-blue-700' 
-                              : 'bg-green-100 text-green-700'
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-red-100 text-red-700'
                           }`}
                         >
                           <UserIcon className="w-3 h-3" />
@@ -467,12 +467,12 @@ export default function MyPapersPage() {
                   
                     <Link
                       to={`/paper/${paper.id}`}
-                      className="bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 
+                      className="bg-gradient-to-r from-red-500 to-purple-700 hover:from-red-600 hover:to-purple-800 
                                 text-white px-5 py-2 rounded-xl shadow-lg shadow-green-200 
                                 font-semibold tracking-wide inline-flex items-center gap-2"
                     >
                       <Edit className="w-4 h-4" />
-                      Edit Paper
+                      Go to Paper
                     </Link>
                   </div>
                 </motion.div>

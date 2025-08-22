@@ -44,7 +44,6 @@ export default function EditPaperPage() {
   const completionValue = watch('completion_percentage', 0);
   const collaboratorsNeeded = watch('collaborators_needed', 1);
 
-  // Fetch paper data
   const fetchPaper = useCallback(async () => {
     if (!id || !user) return;
 

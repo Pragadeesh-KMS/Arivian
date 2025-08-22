@@ -14,7 +14,6 @@ import MyPapersPage from './pages/MyPapersPage';
 import './App.css';
 import EditPaperPage from './pages/EditPaperPage';
 import LikedPapersPage from './pages/LikedPapersPage';
-import ReadLaterPage from './pages/ReadLaterPage';
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -46,9 +45,7 @@ function AppContent() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
-          // Add these routes inside your Router component
           <Route path="/liked-papers" element={<LikedPapersPage />} />
-          <Route path="/read-later" element={<ReadLaterPage />} />
           <Route path="/home" element={
             <ProtectedRoute>
               <HomePage />

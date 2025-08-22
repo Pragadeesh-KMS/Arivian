@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Menu, User, X, CheckCircle, AlertCircle, Clock, Heart, Book } from 'lucide-react';
+import { Menu, User, X, CheckCircle, AlertCircle, Clock, Heart } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProfileModal from './ProfileModal';
 import { Link } from 'react-router-dom';
 import { TrendingUp } from 'lucide-react';
-import { Brain } from "lucide-react";
+import Logo from "../components/Logo";
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -61,12 +61,7 @@ export default function Header({ onMenuToggle, showMenu = true }: HeaderProps) {
               </button>
             )}
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-                <Brain className="w-5 h-5 text-white" />
-              </div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                Arivian
-              </h1>
+              <Logo width="240" height="40" viewBox="0 0 1400 100" />
             </div>
           </div>
           
@@ -76,7 +71,6 @@ export default function Header({ onMenuToggle, showMenu = true }: HeaderProps) {
                 Welcome back, {userName}!
               </div>
             )}
-            {/* NEW: Buttons for Liked Papers and Read Later */}
             {user && (
               <>
                 <Link 
@@ -85,13 +79,6 @@ export default function Header({ onMenuToggle, showMenu = true }: HeaderProps) {
                   title="Liked Papers"
                 >
                   <Heart className="w-5 h-5" />
-                </Link>
-                <Link 
-                  to="/read-later"
-                  className="p-2 text-purple-600 hover:bg-purple-100 rounded-full transition-colors duration-200"
-                  title="Read Later"
-                >
-                  <Book className="w-5 h-5" />
                 </Link>
               </>
             )}

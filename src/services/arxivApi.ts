@@ -102,7 +102,7 @@ export const getYesterdaysPapers = async (topic: string, maxResults: number = 6)
   }
 };
 
-export const searchArXivPapers = async (query: string, maxResults: number = 15, yearRange?: string): Promise<ArXivPaper[]> => {
+export const searchArXivPapers = async (query: string, maxResults: number = 15, year?: string): Promise<ArXivPaper[]> => {
   const params: Record<string, string> = {
     search_query: query,
     start: '0',
@@ -111,13 +111,13 @@ export const searchArXivPapers = async (query: string, maxResults: number = 15, 
     sortOrder: 'descending',
   };
 
-  if (yearRange) {
+  if (year) {
     let arxivYearFilter = '';
-    if (yearRange.includes('-')) {
-      const [startYear, endYear] = yearRange.split('-');
+    if (year.includes('-')) {
+      const [startYear, endYear] = year.split('-');
       arxivYearFilter = ` submittedDate:[${startYear}01010000 TO ${endYear}12312359]`;
     } else {
-      arxivYearFilter = ` submittedDate:[${yearRange}01010000 TO ${yearRange}12312359]`;
+      arxivYearFilter = ` submittedDate:[${year}01010000 TO ${year}12312359]`;
     }
     params.search_query += arxivYearFilter;
   }

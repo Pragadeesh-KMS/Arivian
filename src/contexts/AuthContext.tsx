@@ -14,9 +14,9 @@ interface AuthContextType {
   fetchProfile: () => Promise<void>;
   updateProfile: (profileData: any) => Promise<boolean>;
   savePaper: (paperData: any) => Promise<boolean>;
-  saveToReadLater: (paperData: any) => Promise<boolean>;
   savedPaperIds: Set<string>;
-  readLaterPaperIds: Set<string>;
+  updatePaperTags: (paperId: string, tags: string[]) => Promise<boolean>;
+  getUserTags: () => Promise<string[]>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,13 +28,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<any>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [savedPaperIds, setSavedPaperIds] = useState<Set<string>>(new Set());
-  const [readLaterPaperIds, setReadLaterPaperIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const initializeSavedPapers = async () => {
       if (user) {
         await fetchSavedPapers();
-        await fetchReadLaterPapers();
       }
     };
     
@@ -54,22 +52,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSavedPaperIds(savedIds);
     } catch (error) {
       console.error('Error fetching saved papers:', error);
-    }
-  };
-
-  const fetchReadLaterPapers = async () => {
-    if (!user) return;
-    
-    try {
-      const { data: readLaterData } = await supabase
-        .from('read_later')
-        .select('paper_id')
-        .eq('user_id', user.id);
-      
-      const readLaterIds = new Set(readLaterData?.map(item => item.paper_id) || []);
-      setReadLaterPaperIds(readLaterIds);
-    } catch (error) {
-      console.error('Error fetching read later papers:', error);
     }
   };
 
@@ -112,7 +94,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           await fetchProfile();
           await fetchSavedPapers();
-          await fetchReadLaterPapers();
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
@@ -131,11 +112,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (event === 'SIGNED_IN') {
           await fetchProfile();
           await fetchSavedPapers();
-          await fetchReadLaterPapers();
         } else if (event === 'SIGNED_OUT') {
           setProfileLoaded(false);
           setSavedPaperIds(new Set());
-          setReadLaterPaperIds(new Set());
         }
       }
     );
@@ -192,7 +171,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(null);
       setProfileLoaded(false);
       setSavedPaperIds(new Set());
-      setReadLaterPaperIds(new Set());
     } catch (error: any) {
       toast.error(error.message || 'Sign out failed');
     }
@@ -253,6 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             authors: paperData.authors || [],
             url: paperData.url,
             source: paperData.source,
+            tags: [],
             created_at: new Date().toISOString(),
           });
 
@@ -268,51 +247,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const saveToReadLater = async (paperData: any): Promise<boolean> => {
-    if (!user) {
-      toast.error('Please sign in to save papers');
-      return false;
-    }
+  const updatePaperTags = async (paperId: string, tags: string[]): Promise<boolean> => {
+    if (!user) return false;
     
     try {
-      if (readLaterPaperIds.has(paperData.paper_id)) {
-        const { error } = await supabase
-          .from('read_later')
-          .delete()
-          .match({ user_id: user.id, paper_id: paperData.paper_id });
-        
-        if (error) throw error;
-        
-        setReadLaterPaperIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(paperData.paper_id);
-          return newSet;
-        });
-        
-        toast.success('Paper removed from read later!');
-      } else {
-        const { error } = await supabase
-          .from('read_later')
-          .upsert({
-            user_id: user.id,
-            paper_id: paperData.paper_id,
-            title: paperData.title,
-            abstract: paperData.abstract || '',
-            authors: paperData.authors || [],
-            url: paperData.url,
-            source: paperData.source,
-            created_at: new Date().toISOString(),
-          });
+      const { error } = await supabase
+        .from('saved_papers')
+        .update({ tags })
+        .match({ user_id: user.id, paper_id: paperId });
 
-        if (error) throw error;
-        
-        setReadLaterPaperIds(prev => new Set(prev).add(paperData.paper_id));
-        toast.success('Paper saved to read later!!');
-      }
+      if (error) throw error;
+      toast.success('Tags updated!');
       return true;
     } catch (error: any) {
-      toast.error(error.message || 'Failed to save paper');
+      toast.error(error.message || 'Failed to update tags');
       return false;
+    }
+  };
+
+  const getUserTags = async (): Promise<string[]> => {
+    if (!user) return [];
+    
+    try {
+      const { data, error } = await supabase
+        .from('saved_papers')
+        .select('tags')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      
+      const allTags = new Set<string>();
+      data.forEach(item => {
+        if (item.tags) {
+          item.tags.forEach(tag => allTags.add(tag));
+        }
+      });
+      
+      return Array.from(allTags);
+    } catch (error) {
+      console.error('Error fetching user tags:', error);
+      return [];
     }
   };
 
@@ -327,9 +301,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetchProfile,
     updateProfile,
     savePaper,
-    saveToReadLater,
     savedPaperIds,
-    readLaterPaperIds,
+    updatePaperTags,
+    getUserTags,
   };
 
   return (

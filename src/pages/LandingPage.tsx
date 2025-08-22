@@ -8,8 +8,9 @@ import {
   ChevronDown, ChevronUp, CheckCircle, Plus, User, Calendar, ExternalLink, Lock,
   Mail as MailIcon, Globe as GlobeIcon,
   GraduationCap, Briefcase, FilePlus, FileCheck, FileMinus, FileLock,
-  Lightbulb, Brain, Edit3, CheckSquare, Image, MessageSquare, Bookmark
+  Lightbulb, Edit3, CheckSquare, Image, MessageSquare, Bookmark
 } from 'lucide-react';
+import Logo from "../components/Logo";
 
 const LandingPage = () => {
   const controls = useAnimation();
@@ -143,25 +144,19 @@ const LandingPage = () => {
       <nav className="bg-white/80 backdrop-blur-xl border border-white/20 rounded-2xl shadow-xl mx-6 mt-6 mb-8 p-4 sticky top-6 z-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-sm">R</span>
-            </div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              Arivian
-            </h1>
+              <Logo width="240" height="40" viewBox="-100 0 1400 100" />
           </div>
           
           <div className="hidden md:flex items-center gap-6">
-            <a href="#features" className="text-slate-700 hover:text-indigo-600 transition-colors">Features</a>
-            <a href="#how-it-works" className="text-slate-700 hover:text-indigo-600 transition-colors">How It Works</a>
-            <a href="#ai-assistance" className="text-slate-700 hover:text-indigo-600 transition-colors">AI Assistance</a>
-            <a href="#testimonials" className="text-slate-700 hover:text-indigo-600 transition-colors">Testimonials</a>
+            <a href="#features" className="text-slate-700 hover:text-teal-800 hover:bg-violet-100 transition-colors px-2 py-1 rounded-full">Features</a>
+            <a href="#how-it-works" className="text-slate-700 hover:text-teal-800 hover:bg-violet-100 transition-colors px-2 py-1 rounded-full">How It Works</a>
+            <a href="#ai-assistance" className="text-slate-700 hover:text-teal-800 hover:bg-violet-100 transition-colors px-2 py-1 rounded-full">AI Assistance</a>
           </div>
           
           <div className="flex items-center gap-4">
             <Link
               to="/login"
-              className="px-6 py-2 text-slate-700 hover:text-indigo-600 font-medium transition-colors duration-200"
+              className="px-6 py-2 text-slate-700 hover:text-teal-600 font-medium transition-colors duration-200"
             >
               Login
             </Link>
@@ -176,7 +171,7 @@ const LandingPage = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="px-6 py-16 md:py-24 text-center relative overflow-hidden min-h-[70vh] flex items-center">
+      <section className="px-6 py-6 md:py-8 text-center relative overflow-hidden min-h-[70vh] flex items-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -270,7 +265,7 @@ const LandingPage = () => {
         </motion.div>
       </section>
 
-            {/* Paper Discovery Flow Section */}
+      {/* Paper Discovery Flow Section */}
       <section className="px-6 py-24 bg-gradient-to-b from-indigo-50 via-purple-50 to-indigo-100 relative overflow-hidden">
         <div className="max-w-6xl mx-auto relative z-10">
           {/* Heading */}

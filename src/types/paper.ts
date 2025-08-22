@@ -10,6 +10,8 @@ export interface Paper {
   citationCount: number;
   publicationTypes?: string[];
   venue?: string;
+  source?: 'semantic-scholar' | 'arxiv';
+  tags?: string[];
 }
 
 export interface PaperAction {

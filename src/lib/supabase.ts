@@ -127,7 +127,6 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           is_public?: boolean;
-
         };
       };
     };

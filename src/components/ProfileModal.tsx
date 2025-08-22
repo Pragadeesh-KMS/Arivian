@@ -178,7 +178,6 @@ export default function ProfileModal({ onClose, profileStatus }: ProfileModalPro
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Personal Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-slate-800 border-b border-slate-200 pb-2">
               Personal Information

@@ -3,12 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
-import { Save, Download, Users, FileText, Settings, Brain } from 'lucide-react';
+import { Save, Download, Users, FileText, Settings } from 'lucide-react';
 import Header from '../components/Header';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
-import { ReactComponent as NeuralNetIcon } from './nn.svg';
+import Logo from "../components/Logo";
 
 export default function PaperEditorPage() {
   const { id } = useParams();
@@ -35,9 +35,9 @@ export default function PaperEditorPage() {
           className="max-w-4xl mx-auto"
         >
           <div className="glass-card p-8 text-center">
-            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Brain className="w-8 h-8 text-white" />
-            </div>
+              <div className="flex items-center gap-3">
+                <Logo width="600" height="30" viewBox="-700 0 1500 120" />
+              </div>
             <h2 className="text-2xl font-bold text-slate-800 mb-4">AI-Powered Paper Editor Coming Soon!</h2>
             <p className="text-slate-600 mb-6">
               We are working hard to bring you an AI-enhanced paper editing experience. 

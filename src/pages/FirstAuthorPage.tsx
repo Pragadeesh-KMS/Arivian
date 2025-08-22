@@ -69,7 +69,6 @@ export default function FirstAuthorPage() {
       return;
     }
   
-    // Verify signature that matches profile username
     if (data.signature.toLowerCase() !== profile.username.toLowerCase()) {
       toast.error('Signature must match your profile name');
       return;
@@ -245,7 +244,7 @@ export default function FirstAuthorPage() {
                         htmlFor="private"
                         className={`px-4 py-2 rounded-l-lg cursor-pointer transition-colors ${
                           !isPublic
-                            ? 'bg-indigo-600 text-white'
+                            ? 'bg-red-600 text-white'
                             : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                         }`}
                       >
