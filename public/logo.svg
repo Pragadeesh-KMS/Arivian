@@ -1,0 +1,11 @@
+<svg width="50" height="40" viewBox="0 0 200 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(0, 0)">
+    <path fill-rule="evenodd" clip-rule="evenodd" 
+      d="M76.7114 18.5252H64.9388L20.3288 95.2577H0L55.9621 0.824219H85.604L141.692 95.2577H121.237L76.7114 18.5252Z"
+      fill="red" fill-opacity="0.85"/>
+  </g>
+
+  <g transform="translate(160, 0)">
+    <path d="M456.655 0.824219H438.954V95.2577H456.655V0.824219Z" transform="translate(-438.954, 0)" fill="red" fill-opacity="0.85"/>
+  </g>
+</svg>
